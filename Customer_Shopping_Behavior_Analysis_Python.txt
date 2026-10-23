@@ -1,0 +1,192 @@
+# ============================================================
+# CUSTOMER SHOPPING BEHAVIOR ANALYSIS
+# Data Preparation and MySQL Integration
+# Tools: Python, Pandas, SQLAlchemy, MySQL
+# ============================================================
+
+
+# 1. IMPORT LIBRARIES
+# ============================================================
+
+import pandas as pd
+
+
+# 2. LOAD DATASET
+# ============================================================
+
+df = pd.read_csv("customer_shopping_behavior.csv")
+
+print("Dataset loaded successfully.")
+print(f"Original dataset shape: {df.shape}")
+
+
+# 3. EXPLORE THE DATASET
+# ============================================================
+
+print("\n--- First Five Records ---")
+print(df.head())
+
+print("\n--- Dataset Information ---")
+df.info()
+
+print("\n--- Summary Statistics ---")
+print(df.describe(include="all"))
+
+
+# 4. CHECK MISSING VALUES
+# ============================================================
+
+print("\n--- Missing Values Before Cleaning ---")
+print(df.isnull().sum())
+
+
+# 5. HANDLE MISSING VALUES
+# ============================================================
+
+# Fill missing review ratings using the median rating
+# within the corresponding product category.
+
+df["Review Rating"] = df.groupby("Category")["Review Rating"].transform(
+    lambda ratings: ratings.fillna(ratings.median())
+)
+
+print("\n--- Missing Values After Cleaning ---")
+print(df.isnull().sum())
+
+
+# 6. STANDARDIZE COLUMN NAMES
+# ============================================================
+
+# Convert column names to lowercase and replace spaces
+# with underscores.
+
+df.columns = df.columns.str.lower().str.replace(" ", "_")
+
+# Simplify the purchase amount column name.
+
+df.rename(
+    columns={"purchase_amount_(usd)": "purchase_amount"},
+    inplace=True
+)
+
+print("\n--- Standardized Column Names ---")
+print(df.columns.tolist())
+
+
+# 7. CREATE AGE GROUPS
+# ============================================================
+
+# Divide customers into four age groups using quartiles.
+
+age_group_labels = [
+    "Young Adult",
+    "Adult",
+    "Middle-aged",
+    "Senior"
+]
+
+df["age_group"] = pd.qcut(
+    df["age"],
+    q=4,
+    labels=age_group_labels
+)
+
+print("\n--- Age Group Preview ---")
+print(df[["age", "age_group"]].head())
+
+
+# 8. CONVERT PURCHASE FREQUENCY TO DAYS
+# ============================================================
+
+# Map purchase frequency categories to approximate day intervals.
+
+frequency_mapping = {
+    "Weekly": 7,
+    "Fortnightly": 14,
+    "Bi-Weekly": 14,
+    "Monthly": 30,
+    "Quarterly": 90,
+    "Every 3 Months": 90,
+    "Annually": 365
+}
+
+df["purchase_frequency_days"] = (
+    df["frequency_of_purchases"].map(frequency_mapping)
+)
+
+print("\n--- Purchase Frequency Preview ---")
+print(
+    df[
+        ["frequency_of_purchases", "purchase_frequency_days"]
+    ].head()
+)
+
+
+# 9. CHECK REDUNDANT COLUMNS
+# ============================================================
+
+# Check whether discount_applied and promo_code_used
+# contain identical values.
+
+columns_match = (
+    df["discount_applied"] == df["promo_code_used"]
+).all()
+
+print("\n--- Redundancy Check ---")
+print("Discount and promo code columns match:", columns_match)
+
+# Remove promo_code_used only if both columns are identical
+# for every record.
+
+if columns_match:
+    df.drop(columns=["promo_code_used"], inplace=True)
+    print("Redundant promo_code_used column removed.")
+else:
+    print("Both columns retained because their values differ.")
+
+
+# 10. VALIDATE THE PROCESSED DATASET
+# ============================================================
+
+print("\n--- Final Dataset Shape ---")
+print(df.shape)
+
+print("\n--- Final Column Names ---")
+print(df.columns.tolist())
+
+print("\n--- Remaining Missing Values ---")
+print(df.isnull().sum())
+
+print("\n--- Processed Dataset Preview ---")
+print(df.head())
+
+
+# 11. LOAD PROCESSED DATA INTO MYSQL
+# ============================================================
+
+# Install required packages before running this section:
+# pip install pymysql sqlalchemy
+
+# Uncomment and configure this section when you are ready
+# to connect to your MySQL database.
+
+# from sqlalchemy import create_engine
+#
+# username = "root"
+# password = "your_password"
+# host = "localhost"
+# port = 3306
+# database = "customer_behavior"
+#
+# engine = create_engine(
+#     f"mysql+pymysql://{username}:{password}@{host}:{port}/{database}"
+# )
+#
+# df.to_sql(
+#     name="customer",
+#     con=engine,
+#     if_exists="replace",
+#     index=False
+# )
+#
+# print("Processed dataset loaded into MySQL successfully.")
